@@ -37,7 +37,6 @@ public class ApiClient {
     // Курьер: Удаление
     public static Response deleteCourier(int courierId) {
         return getRequest()
-                .body("{\"id\": \"" + courierId + "\"}")
                 .delete(API_VERSION + "/courier/" + courierId);
     }
 
@@ -91,15 +90,13 @@ public class ApiClient {
     // Заказ: Завершить
     public static Response finishOrder(int orderId) {
         return getRequest()
-                .body("{\"id\": " + orderId + "}")
                 .put(API_VERSION + "/orders/finish/" + orderId);
     }
 
     // Заказ: Отменить
     public static Response cancelOrder(int trackNumber) {
         return getRequest()
-                .body("{\"track\": " + trackNumber + "}")
-                .put(API_VERSION + "/orders/cancel");
+                .put(API_VERSION + "/orders/cancel/" + trackNumber);
     }
 
     // Утилиты: Ping

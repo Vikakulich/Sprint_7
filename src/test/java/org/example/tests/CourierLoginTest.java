@@ -1,5 +1,6 @@
 package org.example.tests;
 
+import com.github.javafaker.Faker;
 import io.restassured.response.Response;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
@@ -11,21 +12,24 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
+import static org.hamcrest.Matchers.*;
 
 @Feature("Логин курьера")
 public class CourierLoginTest {
     private String testLogin;
     private String testPassword;
     private int createdCourierId;
+    private Faker faker;
 
     @Before
     public void setUp() {
-        testLogin = "testCourier_" + System.currentTimeMillis();
-        testPassword = "password123";
+        faker = new Faker();
+        testLogin = faker.name().firstName().toLowerCase() + "_" + System.currentTimeMillis();
+        testPassword = faker.internet().password();
         createdCourierId = -1;
         
         // Создаём тестового курьера
-        CourierData courier = new CourierData(testLogin, testPassword, "TestName");
+        CourierData courier = new CourierData(testLogin, testPassword, faker.name().firstName());
         Response response = ApiClient.createCourier(courier);
         
         if (response.getStatusCode() == 201) {
@@ -51,10 +55,7 @@ public class CourierLoginTest {
         
         Response response = ApiClient.loginCourier(credentials);
         
-        assertEquals("Статус код должен быть 200", 200, response.getStatusCode());
-        assertTrue("Ответ должен содержать id", response.getBody().asString().contains("\"id\""));
-        int userId = response.getBody().jsonPath().getInt("id");
-        assertTrue("ID должен быть положительным числом", userId > 0);
+        response.then().statusCode(200).body("id", notNullValue()).body("id", greaterThan(0));
     }
 
     @Test
@@ -64,27 +65,25 @@ public class CourierLoginTest {
         
         Response response = ApiClient.loginCourier(credentials);
         
-        assertEquals("Логин должен успешно выполниться без firstName", 200, response.getStatusCode());
-        assertTrue("Ответ должен содержать id", response.getBody().asString().contains("\"id\""));
+        response.then().statusCode(200).body("id", notNullValue());
     }
 
     @Test
     @Description("Ошибка при отсутствии login")
     public void testLoginWithoutLogin() {
-        Response response = ApiClient.loginCourier("{\"password\": \"" + testPassword + "\"}");
+        CourierData invalidCredentials = new CourierData(null, testPassword);
+        Response response = ApiClient.loginCourier(invalidCredentials);
         
-        assertEquals("Статус код должен быть 400", 400, response.getStatusCode());
-        assertTrue("Ответ должен содержать сообщение об ошибке",
-                response.getBody().asString().contains("Недостаточно данных"));
+        response.then().statusCode(400).body("message", containsString("Недостаточно данных"));
     }
 
     @Test
     @Description("Ошибка при отсутствии password")
     public void testLoginWithoutPassword() {
-        Response response = ApiClient.loginCourier("{\"login\": \"" + testLogin + "\"}");
+        CourierData invalidCredentials = new CourierData(testLogin, null);
+        Response response = ApiClient.loginCourier(invalidCredentials);
         
         // API возвращает ошибку (400 или 504) при отсутствии пароля
-        // Проверяем что это ошибка, но не успешный ответ (200)
         assertTrue("Статус код должен быть ошибкой (не 200)",
                 response.getStatusCode() != 200 && response.getStatusCode() >= 400);
     }
@@ -96,10 +95,9 @@ public class CourierLoginTest {
         
         Response response = ApiClient.loginCourier(credentials);
         
-        assertEquals("Статус код должен быть 401 или 404", true,
+        assertTrue("Статус код должен быть 401 или 404",
                 response.getStatusCode() == 401 || response.getStatusCode() == 404);
-        assertTrue("Ответ должен содержать сообщение об ошибке",
-                response.getBody().asString().contains("message"));
+        response.then().body("message", notNullValue());
     }
 
     @Test
@@ -109,10 +107,9 @@ public class CourierLoginTest {
         
         Response response = ApiClient.loginCourier(credentials);
         
-        assertEquals("Статус код должен быть 401 или 404", true,
+        assertTrue("Статус код должен быть 401 или 404",
                 response.getStatusCode() == 401 || response.getStatusCode() == 404);
-        assertTrue("Ответ должен содержать сообщение об ошибке",
-                response.getBody().asString().contains("message"));
+        response.then().body("message", notNullValue());
     }
 
     @Test
@@ -122,9 +119,7 @@ public class CourierLoginTest {
         
         Response response = ApiClient.loginCourier(credentials);
         
-        assertEquals("Статус код должен быть 404", 404, response.getStatusCode());
-        assertTrue("Ответ должен содержать сообщение 'не найдена'",
-                response.getBody().asString().contains("не найдена"));
+        response.then().statusCode(404).body("message", containsString("не найдена"));
     }
 }
 

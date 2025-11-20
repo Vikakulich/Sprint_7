@@ -7,6 +7,7 @@ import org.example.utils.ApiClient;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
+import static org.hamcrest.Matchers.*;
 
 @Feature("Список заказов")
 public class OrderListTest {
@@ -17,8 +18,7 @@ public class OrderListTest {
         Response response = ApiClient.getOrders(null, null, null, null);
 
         assertEquals("Статус код должен быть 200", 200, response.getStatusCode());
-        assertTrue("Ответ должен содержать orders", response.getBody().asString().contains("\"orders\""));
-        assertTrue("Ответ должен содержать массив заказов", response.getBody().asString().contains("["));
+        response.then().body("orders", notNullValue()).body("orders", instanceOf(java.util.List.class));
     }
 
     @Test
@@ -27,7 +27,7 @@ public class OrderListTest {
         Response response = ApiClient.getOrders(null, null, null, null);
 
         assertEquals("Статус код должен быть 200", 200, response.getStatusCode());
-        assertTrue("Ответ должен содержать pageInfo", response.getBody().asString().contains("\"pageInfo\""));
+        response.then().body("pageInfo", notNullValue()).body("pageInfo.page", notNullValue());
     }
 
     @Test
@@ -36,8 +36,7 @@ public class OrderListTest {
         Response response = ApiClient.getOrders(null, null, null, null);
 
         assertEquals("Статус код должен быть 200", 200, response.getStatusCode());
-        assertTrue("Ответ должен содержать availableStations", 
-                response.getBody().asString().contains("\"availableStations\""));
+        response.then().body("availableStations", notNullValue()).body("availableStations", instanceOf(java.util.List.class));
     }
 
     @Test

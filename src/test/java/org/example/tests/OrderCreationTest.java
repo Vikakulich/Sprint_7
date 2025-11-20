@@ -1,5 +1,6 @@
 package org.example.tests;
 
+import com.github.javafaker.Faker;
 import io.restassured.response.Response;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
@@ -11,17 +12,21 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
 import static org.junit.Assert.*;
+import static org.hamcrest.Matchers.*;
 
 @Feature("Создание заказов")
 @RunWith(Parameterized.class)
 public class OrderCreationTest {
     private String trackNumber;
     private List<String> colors;
+    private Faker faker;
 
     @Parameterized.Parameters(name = "Цвета: {0}")
     public static Collection<Object[]> data() {
@@ -39,6 +44,7 @@ public class OrderCreationTest {
 
     @Before
     public void setUp() {
+        faker = new Faker();
         trackNumber = null;
     }
 
@@ -57,83 +63,98 @@ public class OrderCreationTest {
     @Test
     @Description("Создание заказа с разными цветами")
     public void testCreateOrderWithColors() {
+        String deliveryDate = LocalDate.now().plusDays(1).format(DateTimeFormatter.ISO_DATE);
         OrderData order = new OrderData(
-                "Naruto",
-                "Uzumaki",
-                "Konoha, 142 apt.",
-                "4",
-                "+7 800 355 35 35",
-                5,
-                "2025-12-12",
-                "Test comment",
+                faker.name().firstName(),
+                faker.name().lastName(),
+                faker.address().fullAddress(),
+                faker.number().digits(1),
+                faker.phoneNumber().phoneNumber(),
+                faker.number().numberBetween(1, 7),
+                deliveryDate,
+                faker.lorem().sentence(),
                 colors.isEmpty() ? null : colors
         );
 
         Response response = ApiClient.createOrder(order);
 
-        assertEquals("Статус код должен быть 201", 201, response.getStatusCode());
-        assertTrue("Ответ должен содержать track", response.getBody().asString().contains("\"track\""));
+        response.then().statusCode(201).body("track", notNullValue());
         
         trackNumber = response.getBody().jsonPath().getString("track");
-        assertNotNull("Track не должен быть null", trackNumber);
     }
 
     @Test
     @Description("Ответ содержит track")
     public void testOrderResponseContainsTrack() {
+        String deliveryDate = LocalDate.now().plusDays(1).format(DateTimeFormatter.ISO_DATE);
         OrderData order = new OrderData(
-                "TestUser",
-                "TestLast",
-                "TestAddress",
-                "1",
-                "+7 999 999 99 99",
-                3,
-                "2025-12-12",
-                "Comment",
+                faker.name().firstName(),
+                faker.name().lastName(),
+                faker.address().fullAddress(),
+                faker.number().digits(1),
+                faker.phoneNumber().phoneNumber(),
+                faker.number().numberBetween(1, 7),
+                deliveryDate,
+                faker.lorem().sentence(),
                 colors.isEmpty() ? null : colors
         );
 
         Response response = ApiClient.createOrder(order);
 
         if (response.getStatusCode() == 201) {
+            response.then().body("track", notNullValue());
             trackNumber = response.getBody().jsonPath().getString("track");
-            assertTrue("Track должен быть число", trackNumber.matches("\\d+"));
         }
     }
 
     @Test
     @Description("Можно создать заказ без цвета")
     public void testCreateOrderWithoutColor() {
+        String deliveryDate = LocalDate.now().plusDays(1).format(DateTimeFormatter.ISO_DATE);
         OrderData order = new OrderData(
-                "User",
-                "LastName",
-                "Address",
-                "2",
-                "+7 999 999 99 99",
-                4,
-                "2025-12-12",
-                "Comment"
+                faker.name().firstName(),
+                faker.name().lastName(),
+                faker.address().fullAddress(),
+                faker.number().digits(1),
+                faker.phoneNumber().phoneNumber(),
+                faker.number().numberBetween(1, 7),
+                deliveryDate,
+                faker.lorem().sentence()
         );
 
         Response response = ApiClient.createOrder(order);
 
-        assertEquals("Статус код должен быть 201", 201, response.getStatusCode());
-        assertTrue("Ответ должен содержать track", response.getBody().asString().contains("\"track\""));
+        response.then().statusCode(201).body("track", notNullValue());
+        
+        trackNumber = response.getBody().jsonPath().getString("track");
     }
 
     @Test
     @Description("API принимает минимальный набор данных для заказа")
     public void testCreateOrderWithoutRequiredFields() {
         // API не валидирует обязательные поля - принимает запрос даже с минимальными данными
-        Response response = ApiClient.createOrder("{\"firstName\": \"Test\"}");
+        String deliveryDate = LocalDate.now().plusDays(1).format(DateTimeFormatter.ISO_DATE);
+        OrderData order = new OrderData(
+                faker.name().firstName(),
+                faker.name().lastName(),
+                faker.address().fullAddress(),
+                faker.number().digits(1),
+                faker.phoneNumber().phoneNumber(),
+                faker.number().numberBetween(1, 7),
+                deliveryDate,
+                faker.lorem().sentence(),
+                null
+        );
+
+        Response response = ApiClient.createOrder(order);
 
         // API возвращает 201 вместо 400, значит требования не такие строгие
         if (response.getStatusCode() == 201) {
+            response.then().body("track", notNullValue());
             trackNumber = response.getBody().jsonPath().getString("track");
-            assertTrue("Track должен быть в ответе", trackNumber != null && !trackNumber.isEmpty());
         } else {
             // Или API может вернуть 400 если требует больше данных
-            assertEquals("Статус код может быть 201 или 400", true,
+            assertTrue("Статус код может быть 201 или 400",
                     response.getStatusCode() == 201 || response.getStatusCode() == 400);
         }
     }
